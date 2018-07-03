@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Syed Qader" />
+
+
+<title>Practical Machine Learning Project</title>
+
+<script src="practicalMLproject_files/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="practicalMLproject_files/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="practicalMLproject_files/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="practicalMLproject_files/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="practicalMLproject_files/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="practicalMLproject_files/navigation-1.1/tabsets.js"></script>
+<link href="practicalMLproject_files/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="practicalMLproject_files/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Practical Machine Learning Project</h1>
+<h4 class="author"><em>Syed Qader</em></h4>
+<h4 class="date"><em>2 July 2018</em></h4>
+
+</div>
+
+
+<div id="practical-machine-learning-project" class="section level1">
+<h1>Practical Machine Learning Project</h1>
+<div id="objective" class="section level2">
+<h2>Objective</h2>
+<p>The objective of this project is to train ML algos on a data set and use these algos to predict on an unseen dataset.</p>
+</div>
+<div id="import-data-and-load-libraries" class="section level2">
+<h2>Import Data and load libraries</h2>
+<pre class="r"><code>require(caret)</code></pre>
+<pre><code>## Loading required package: caret</code></pre>
+<pre><code>## Warning: package &#39;caret&#39; was built under R version 3.4.4</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<pre class="r"><code>require(rpart)</code></pre>
+<pre><code>## Loading required package: rpart</code></pre>
+<pre class="r"><code>require(randomForest)</code></pre>
+<pre><code>## Loading required package: randomForest</code></pre>
+<pre><code>## Warning: package &#39;randomForest&#39; was built under R version 3.4.4</code></pre>
+<pre><code>## randomForest 4.6-14</code></pre>
+<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<pre><code>## 
+## Attaching package: &#39;randomForest&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:ggplot2&#39;:
+## 
+##     margin</code></pre>
+<pre class="r"><code>trainingURL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
+testingURL &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
+
+training &lt;- read.csv(url(trainingURL), na.strings=c(&quot;NA&quot;,&quot;#DIV/0!&quot;,&quot;&quot;))
+testing &lt;- read.csv(url(testingURL), na.strings=c(&quot;NA&quot;,&quot;#DIV/0!&quot;,&quot;&quot;))</code></pre>
+</div>
+<div id="inspect-and-clean-data" class="section level2">
+<h2>Inspect and Clean Data</h2>
+<p>a number of things need to be done before we can get going -set seed -clearly a large number of columns are filled with NA, these needs to be counted -where the percentage of NAs is greater than 70%, these columns should be removed (both from training and test set) -the first column is an indexation column, this also needs to be removed (because it is correlated to the variable wher are trying to predict -then the training set has to be partitioned into a trainTrain set and a trainTest set (the final test set is kept as test)</p>
+<pre class="r"><code>set.seed(2702)
+
+checkNA &lt;- rep(0,dim(training)[2])
+for (i in 1:dim(training)[2]) {
+  checkNA[i] &lt;- sum(is.na(training[,i])) / dim(training)[1]
+}
+
+table(checkNA)</code></pre>
+<pre><code>## checkNA
+##                 0 0.979308938946081 0.979359902150647 0.979410865355213 
+##                60                67                 1                 1 
+## 0.979512791764346 0.979563754968912 0.979767607787178 0.979818570991744 
+##                 1                 4                 1                 4 
+##  0.97986953419631 0.980939761492203 0.983233105697686 0.983284068902253 
+##                 2                 2                 1                 1 
+## 0.983385995311385 0.983538884925084  0.98358984812965 0.983640811334217 
+##                 2                 1                 4                 2 
+##                 1 
+##                 6</code></pre>
+<pre class="r"><code>usedCols &lt;- 2
+for (i in 3:160) {
+  ifelse(checkNA[i] &gt; 0.7, usedCols &lt;- c(usedCols), usedCols &lt;- c(usedCols, i))
+}
+
+NewTraining &lt;- training[,usedCols]
+NewTesting &lt;- testing[,usedCols]
+
+#create training set and testing set, within the initial testing set; validation set is completely separate
+inTrain &lt;- createDataPartition(y=NewTraining$classe, p = 0.75, list = FALSE)
+
+trainTrain &lt;- NewTraining[inTrain,]
+trainTest &lt;- NewTraining[-inTrain,]
+dim(trainTrain)</code></pre>
+<pre><code>## [1] 14718    59</code></pre>
+<pre class="r"><code>dim(trainTest)</code></pre>
+<pre><code>## [1] 4904   59</code></pre>
+</div>
+<div id="fit-classification-tree" class="section level2">
+<h2>Fit classification tree</h2>
+<p>This is done using the default parameters and the rpart package</p>
+<pre class="r"><code>set.seed(2702)
+
+modTree &lt;- rpart(classe ~ ., method = &quot;class&quot;, data = trainTrain)
+
+plot(modTree, uniform=TRUE,main=&quot;classification tree&quot;)
+text(modTree, use.n = TRUE, all=TRUE, cex=0.45)</code></pre>
+<p><img src="practicalMLproject_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<pre class="r"><code>predTree &lt;- predict(modTree, trainTest, type=&quot;class&quot;)
+StatsTree &lt;- confusionMatrix(predTree, trainTest$classe)
+StatsTree</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1343   57    7    1    0
+##          B   39  772   63   34    0
+##          C   13  112  773   90    2
+##          D    0    8    6  532   49
+##          E    0    0    6  147  850
+## 
+## Overall Statistics
+##                                        
+##                Accuracy : 0.8707       
+##                  95% CI : (0.861, 0.88)
+##     No Information Rate : 0.2845       
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16    
+##                                        
+##                   Kappa : 0.8363       
+##  Mcnemar&#39;s Test P-Value : NA           
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9627   0.8135   0.9041   0.6617   0.9434
+## Specificity            0.9815   0.9656   0.9464   0.9846   0.9618
+## Pos Pred Value         0.9538   0.8502   0.7808   0.8941   0.8475
+## Neg Pred Value         0.9851   0.9557   0.9790   0.9369   0.9869
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2739   0.1574   0.1576   0.1085   0.1733
+## Detection Prevalence   0.2871   0.1852   0.2019   0.1213   0.2045
+## Balanced Accuracy      0.9721   0.8896   0.9253   0.8232   0.9526</code></pre>
+<p>Accuracy is 87.07% In this case, unlike the other cases considered, we can see some structure behind the prediction algorithm It appears that the classification tree has a relatively large/complex structure, taking into account a number of variables</p>
+</div>
+<div id="fit-random-forest" class="section level2">
+<h2>Fit random forest</h2>
+<p>This is done using the default parameters</p>
+<pre class="r"><code>set.seed(2702)
+
+modRF &lt;- randomForest(classe ~ ., data = trainTrain)
+
+predRF &lt;- predict(modRF, trainTest, type=&quot;class&quot;)
+StatsRF &lt;- confusionMatrix(predRF, trainTest$classe)
+StatsRF</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1395    1    0    0    0
+##          B    0  948    0    0    0
+##          C    0    0  855    0    0
+##          D    0    0    0  804    0
+##          E    0    0    0    0  901
+## 
+## Overall Statistics
+##                                      
+##                Accuracy : 0.9998     
+##                  95% CI : (0.9989, 1)
+##     No Information Rate : 0.2845     
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
+##                                      
+##                   Kappa : 0.9997     
+##  Mcnemar&#39;s Test P-Value : NA         
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9989   1.0000   1.0000   1.0000
+## Specificity            0.9997   1.0000   1.0000   1.0000   1.0000
+## Pos Pred Value         0.9993   1.0000   1.0000   1.0000   1.0000
+## Neg Pred Value         1.0000   0.9997   1.0000   1.0000   1.0000
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2845   0.1933   0.1743   0.1639   0.1837
+## Detection Prevalence   0.2847   0.1933   0.1743   0.1639   0.1837
+## Balanced Accuracy      0.9999   0.9995   1.0000   1.0000   1.0000</code></pre>
+<p>Accuracy is 99.98% This is a very good fit, with just 1 misclassification</p>
+</div>
+<div id="fit-gbm-boosting-algo" class="section level2">
+<h2>Fit GBM (boosting algo)</h2>
+<p>This is done using 5 fold cross validation; in this case this has been applied to reduce the amount of time taken to train the model</p>
+<pre class="r"><code>set.seed(2702)
+
+fitControl &lt;- trainControl(method = &quot;repeatedcv&quot;,
+                           number = 5,
+                           repeats = 1)
+
+modGBM &lt;- train(classe ~ ., data = trainTrain, method = &quot;gbm&quot;,
+                trControl = fitControl, 
+                verbose = FALSE)
+
+predGBM &lt;- predict(modGBM, trainTest)
+StatsGBM &lt;- confusionMatrix(predGBM, trainTest$classe)
+StatsGBM</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1395    1    0    0    0
+##          B    0  945    0    0    0
+##          C    0    2  851    2    0
+##          D    0    1    4  802    0
+##          E    0    0    0    0  901
+## 
+## Overall Statistics
+##                                          
+##                Accuracy : 0.998          
+##                  95% CI : (0.9963, 0.999)
+##     No Information Rate : 0.2845         
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16      
+##                                          
+##                   Kappa : 0.9974         
+##  Mcnemar&#39;s Test P-Value : NA             
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9958   0.9953   0.9975   1.0000
+## Specificity            0.9997   1.0000   0.9990   0.9988   1.0000
+## Pos Pred Value         0.9993   1.0000   0.9953   0.9938   1.0000
+## Neg Pred Value         1.0000   0.9990   0.9990   0.9995   1.0000
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2845   0.1927   0.1735   0.1635   0.1837
+## Detection Prevalence   0.2847   0.1927   0.1743   0.1646   0.1837
+## Balanced Accuracy      0.9999   0.9979   0.9972   0.9981   1.0000</code></pre>
+<p>Accuracy is 99.8% Almost a good a fit as the Random Forest; the number of misclassified predicitons is still very small</p>
+</div>
+<div id="model-selection" class="section level2">
+<h2>Model selection</h2>
+<p>Based on these three models, it appears that Random Forest is the most accurate one, with an out of sample sample accuracy of 99.97% Hence this model is selected</p>
+<p>Due to the standalone accuracy of the Random Forest approach, model stacking is not considered (as the added complexity is not required)</p>
+</div>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
