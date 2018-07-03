@@ -1,0 +1,141 @@
+---
+title: "Practical Machine Learning Project"
+author: "Syed Qader"
+date: "2 July 2018"
+output:
+  html_document: 
+    self_contained: no
+---
+
+
+# Practical Machine Learning Project
+
+##Objective
+
+The objective of this project is to train ML algos on a data set and use these algos to predict on an unseen dataset.
+
+##Import Data and load libraries
+
+```{r}
+require(caret)
+require(rpart)
+require(randomForest)
+
+trainingURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(trainingURL), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testingURL), na.strings=c("NA","#DIV/0!",""))
+
+```
+
+## Inspect and Clean Data
+
+a number of things need to be done before we can get going
+-set seed
+-clearly a large number of columns are filled with NA, these needs to be counted
+-where the percentage of NAs is greater than 70%, these columns should be removed (both from training and test set)
+-the first column is an indexation column, this also needs to be removed (because it is correlated to the variable wher are trying to predict
+-then the training set has to be partitioned into a trainTrain set and a trainTest set (the final test set is kept as test)
+
+```{r }
+
+set.seed(2702)
+
+checkNA <- rep(0,dim(training)[2])
+for (i in 1:dim(training)[2]) {
+  checkNA[i] <- sum(is.na(training[,i])) / dim(training)[1]
+}
+
+table(checkNA)
+
+usedCols <- 2
+for (i in 3:160) {
+  ifelse(checkNA[i] > 0.7, usedCols <- c(usedCols), usedCols <- c(usedCols, i))
+}
+
+NewTraining <- training[,usedCols]
+NewTesting <- testing[,usedCols]
+
+#create training set and testing set, within the initial testing set; validation set is completely separate
+inTrain <- createDataPartition(y=NewTraining$classe, p = 0.75, list = FALSE)
+
+trainTrain <- NewTraining[inTrain,]
+trainTest <- NewTraining[-inTrain,]
+dim(trainTrain)
+dim(trainTest)
+```
+
+## Fit classification tree
+
+This is done using the default parameters and the rpart package
+
+```{r}
+
+set.seed(2702)
+
+modTree <- rpart(classe ~ ., method = "class", data = trainTrain)
+
+plot(modTree, uniform=TRUE,main="classification tree")
+text(modTree, use.n = TRUE, all=TRUE, cex=0.45)
+
+predTree <- predict(modTree, trainTest, type="class")
+StatsTree <- confusionMatrix(predTree, trainTest$classe)
+StatsTree
+
+```
+
+Accuracy is 87.07%
+In this case, unlike the other cases considered, we can see some structure behind the prediction algorithm
+It appears that the classification tree has a relatively large/complex structure, taking into account a number of variables
+
+## Fit random forest
+
+This is done using the default parameters
+
+```{r}
+
+set.seed(2702)
+
+modRF <- randomForest(classe ~ ., data = trainTrain)
+
+predRF <- predict(modRF, trainTest, type="class")
+StatsRF <- confusionMatrix(predRF, trainTest$classe)
+StatsRF
+
+```
+
+Accuracy is 99.98% 
+This is a very good fit, with just 1 misclassification
+
+## Fit GBM (boosting algo)
+
+This is done using 5 fold cross validation; in this case this has been applied to reduce the amount of time taken to train the model
+
+```{r}
+
+set.seed(2702)
+
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 1)
+
+modGBM <- train(classe ~ ., data = trainTrain, method = "gbm",
+                trControl = fitControl, 
+                verbose = FALSE)
+
+predGBM <- predict(modGBM, trainTest)
+StatsGBM <- confusionMatrix(predGBM, trainTest$classe)
+StatsGBM
+
+```
+
+Accuracy is 99.8%
+Almost a good a fit as the Random Forest; the number of misclassified predicitons is still very small
+
+##Model selection
+Based on these three models, it appears that Random Forest is the most accurate one, with an out of sample sample accuracy of 99.97%
+Hence this model is selected
+
+Due to the standalone accuracy of the Random Forest approach, model stacking is not considered (as the added complexity is not required) 
+
